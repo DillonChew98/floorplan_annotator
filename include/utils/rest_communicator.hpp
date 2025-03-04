@@ -22,8 +22,9 @@ public:
 
   bool is_connected() const override;
 
-  bool send_update(const std::string & filepath, 
-    int colorize, int postprocess, const std::string& outputfilepath) override;
+  bool send_update(
+    const std::string & filepath,
+    int colorize, int postprocess, const std::string & outputfilepath) override;
 
   ~RestCommunicator();
 
@@ -34,4 +35,4 @@ private:
 
 }  // namespace utils
 }  // namespace floorplan_annotator
-#endif
+#endif  // UTILS__REST_COMMUNICATOR_HPP_
