@@ -6,6 +6,12 @@
 #include <memory>
 #include <string>
 
+enum class CurlStatus
+{
+  OK,
+  ERROR
+};
+
 namespace floorplan_annotator
 {
 namespace utils
@@ -17,8 +23,8 @@ class CurlCommunicator
 public:
   CurlCommunicator();
 
-  void post_request(
-    const std::string & url, const std::string & infilepath, const std::string & outfilepath,
+  CurlStatus post_request(
+    const std::string & infilepath, const std::string & outfilepath,
     int colorize, int postprocess);
 
   ~CurlCommunicator();
@@ -27,6 +33,8 @@ public:
 
 private:
   CURL * curl_handle_{nullptr};
+
+  std::string url_;
 
   bool verbose_;
 };
