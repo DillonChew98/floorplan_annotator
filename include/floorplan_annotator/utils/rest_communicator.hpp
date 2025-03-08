@@ -1,12 +1,12 @@
-#ifndef UTILS__REST_COMMUNICATOR_HPP_
-#define UTILS__REST_COMMUNICATOR_HPP_
+#ifndef FLOORPLAN_ANNOTATOR__UTILS__REST_COMMUNICATOR_HPP_
+#define FLOORPLAN_ANNOTATOR__UTILS__REST_COMMUNICATOR_HPP_
 
 #include <memory>
 #include <string>
 
 #include "cpprest/http_client.h"
 
-#include "utils/rest_communicator_base.hpp"
+#include "floorplan_annotator/utils/rest_communicator_base.hpp"
 #include "nlohmann/json.hpp"
 
 namespace floorplan_annotator
@@ -35,4 +35,4 @@ private:
 
 }  // namespace utils
 }  // namespace floorplan_annotator
-#endif  // UTILS__REST_COMMUNICATOR_HPP_
+#endif  // FLOORPLAN_ANNOTATOR__UTILS__REST_COMMUNICATOR_HPP_

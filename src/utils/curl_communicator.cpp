@@ -1,4 +1,4 @@
-#include "utils/curl_communicator.hpp"
+#include "floorplan_annotator/utils/curl_communicator.hpp"
 
 namespace floorplan_annotator
 {

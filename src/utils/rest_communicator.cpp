@@ -3,7 +3,7 @@
 #include <string>
 #include <sstream>
 
-#include "utils/rest_communicator.hpp"
+#include "floorplan_annotator/utils/rest_communicator.hpp"
 
 namespace floorplan_annotator
 {

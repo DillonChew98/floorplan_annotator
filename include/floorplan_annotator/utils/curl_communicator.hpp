@@ -1,5 +1,5 @@
-#ifndef UTILS__CURL_COMMUNICATOR_HPP_
-#define UTILS__CURL_COMMUNICATOR_HPP_
+#ifndef FLOORPLAN_ANNOTATOR__UTILS__CURL_COMMUNICATOR_HPP_
+#define FLOORPLAN_ANNOTATOR__UTILS__CURL_COMMUNICATOR_HPP_
 
 #include <curl/curl.h>
 
@@ -33,4 +33,4 @@ private:
 
 }  // namespace utils
 }  // namespace floorplan_annotator
-#endif  // UTILS__CURL_COMMUNICATOR_HPP_
+#endif  // FLOORPLAN_ANNOTATOR__UTILS__CURL_COMMUNICATOR_HPP_
