@@ -34,13 +34,13 @@ CurlStatus CurlCommunicator::post_request(
   curl_formadd(
     &formpost, &lastptr,
     CURLFORM_COPYNAME, "postprocess",
-    CURLFORM_COPYCONTENTS, postprocess,
+    CURLFORM_COPYCONTENTS, std::to_string(postprocess).c_str(),
     CURLFORM_END);
 
   curl_formadd(
     &formpost, &lastptr,
     CURLFORM_COPYNAME, "colorize",
-    CURLFORM_COPYCONTENTS, colorize,
+    CURLFORM_COPYCONTENTS, std::to_string(colorize).c_str(),
     CURLFORM_END);
 
   curl_easy_setopt(curl_handle_, CURLOPT_URL, url_.c_str());

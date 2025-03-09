@@ -21,5 +21,5 @@ TEST_F(TESTREST, UPLOADTEST) {
   http_ptr->post_request(
     "/home/dillon/30939153.jpg",
     "/home/dillon/rmf_ws/src/floorplan_annotator/test/output.png",
-    0, 0);
+    1, 1);
 }
