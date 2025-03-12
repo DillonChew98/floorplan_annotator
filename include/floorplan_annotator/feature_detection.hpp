@@ -11,7 +11,19 @@ struct Feature
   std::map<std::pair<int,int>, int> pixels;
   int x_origin, y_origin, width, height;
   double cx, cy;
+};
 
+struct Door
+{
+  std::pair<double, double> start, end;
+  double cx, cy;
+};
+
+enum class FeatureType
+{
+  ROOM,
+  DOOR,
+  WALL
 };
 
 // TODO change to only having colours for walls, rooms and doors
@@ -34,6 +46,7 @@ class FeatureDetection
 {
 public:
   explicit FeatureDetection(const std::string & image_path);
+
   ~FeatureDetection();
 
   FeatureDetection() = delete;
@@ -47,7 +60,7 @@ public:
 
   std::vector<std::pair<double, double>> GetRoomVertices(double x_dist, double y_dist);
 
-  std::vector<Feature> GetDoors() const;
+  std::vector<Door> GetDoors();
 
   QImage convert2QImage();
 
@@ -64,7 +77,7 @@ private:
 
   cv::Mat image_bgr_;
 
-  std::unordered_map<std::string, std::vector<Feature>> features_;
+  std::unordered_map<FeatureType, std::vector<Feature>> features_;
   
 };
-}
+}  // namespace floorplan_annotator

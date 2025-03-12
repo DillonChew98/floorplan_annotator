@@ -22,6 +22,11 @@ void FeatureDetection::FeatureExtraction()
     ExtractWalls();
 }
 
+FeatureDetection::~FeatureDetection()
+{
+
+}
+
 void FeatureDetection::ExtractRooms()
 {
     cv::Mat image_hsv;
@@ -63,15 +68,49 @@ void FeatureDetection::ExtractRooms()
         }
         rooms.push_back(room);
     }
-    features_.insert(std::pair<std::string, std::vector<Feature>>("Room", rooms));
-    // cv::imshow("blue_mask", yellow_mask);
+    features_.insert(std::pair<FeatureType, std::vector<Feature>>(FeatureType::ROOM, rooms));
+}
+
+void FeatureDetection::ExtractDoors()
+{
+    cv::Mat image_hsv;
+    cv::cvtColor(image_, image_hsv, cv::COLOR_BGR2HSV);
+
+    cv::Mat red_mask;
+    cv::inRange(image_hsv, lower_red, upper_red, red_mask);
+
+    cv::Mat labels, stats, centroids;
+    int num_components = cv::connectedComponentsWithStats(red_mask, labels, stats, centroids);
+    std::vector<Feature> doors;
+    doors.reserve(num_components);
+    for (int i = 1; i < num_components; i++) // start at 1 as 0 will always contain the component of the entire canvas
+    {
+        int area = stats.at<int>(i, cv::CC_STAT_AREA);
+        if (area < 20)
+          continue;
+        Feature door;
+        door.x_origin = stats.at<int>(i, cv::CC_STAT_LEFT);
+        door.y_origin = stats.at<int>(i, cv::CC_STAT_TOP);
+        door.width = stats.at<int>(i, cv::CC_STAT_WIDTH);
+        door.height = stats.at<int>(i, cv::CC_STAT_HEIGHT);
+        door.cx = centroids.at<double>(i, 0);
+        door.cy = centroids.at<double>(i, 1);
+        for (int y = door.y_origin; y < door.y_origin + door.height; y++) {
+            for (int x = door.x_origin; x < door.x_origin + door.width; x++) {
+                if (labels.at<int>(y, x) == i) {
+                    auto index = y * door.x_origin + x;
+                    door.pixels[std::pair<int,int>{x,y}] = index;
+                }
+            }
+        }
+        doors.push_back(door);
+    }
+    features_.insert(std::pair<FeatureType, std::vector<Feature>>(FeatureType::DOOR, doors));
+    // cv::imshow("blue_mask", red_mask);
     // cv::imshow("Display window", image_);
     // cv::waitKey(0);
 }
-void FeatureDetection::ExtractDoors()
-{
 
-}
 void FeatureDetection::ExtractWalls()
 {
 
@@ -82,18 +121,15 @@ QImage FeatureDetection::convert2QImage()
     return QImage((uchar*) image_bgr_.data, image_bgr_.cols, image_bgr_.rows, image_bgr_.step, QImage::Format_RGB888);
 }
 
-FeatureDetection::~FeatureDetection()
-{
-
-}
 std::vector<Feature> FeatureDetection::GetWalls() const
 {
 
 }
+
 std::vector<std::pair<double, double>> FeatureDetection::GetRoomVertices(double x_dist, double y_dist)
 {
   std::vector<std::pair<double, double>> vertices;
-  for (const auto& room : features_.at("Room"))
+  for (const auto& room : features_.at(FeatureType::ROOM))
   {
     // padding the corners of the detected room, casting to int as we don't need the precision for rooms
     int x_o = room.x_origin + x_dist;
@@ -101,7 +137,7 @@ std::vector<std::pair<double, double>> FeatureDetection::GetRoomVertices(double 
     int x_max = room.x_origin + room.width;
     int y_max = room.y_origin + room.height;
 
-    // compute number of rows and columns based on height/width / pixel_dist
+    // compute number of rows and columns based on height/width over pixel_dist
     auto h = y_max - y_o;
     auto w = x_max - x_o;
     int rows = w / x_dist;
@@ -118,7 +154,29 @@ std::vector<std::pair<double, double>> FeatureDetection::GetRoomVertices(double 
   }
   return vertices;
 }
-std::vector<Feature> FeatureDetection::GetDoors() const
+
+std::vector<Door> FeatureDetection::GetDoors()
 {
+  // TODO take into account the possibility of doors that are diagonal in nature
+  // Need to verify the x and y origin produced by opencv's connected components
+  std::vector<Door> doors;
+  for (const auto& door : features_.at(FeatureType::DOOR))
+  {
+    Door d;
+    if (door.height > door.width) // vertical door
+    {
+      d.start = std::make_pair(door.cx,(door.cy - door.height/2));
+      d.end = std::make_pair(door.cx, (door.cy + door.height/2));
+    }
+    else
+    {
+      d.start = std::make_pair((door.cx - door.width/2), door.cy);
+      d.end = std::make_pair((door.cx + door.width/2), door.cy);
+    }
+    d.cx = door.cx;
+    d.cy = door.cy;
+    doors.push_back(d);
+  }
+  return doors;
 }
-}
+}  // namespace floorplan_annotator
