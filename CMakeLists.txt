@@ -13,6 +13,7 @@ find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)
 find_package(cpprestsdk REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Concurrent Test Network REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -21,12 +22,14 @@ add_library(${PROJECT_NAME}
   SHARED
   src/utils/rest_communicator.cpp
   src/utils/curl_communicator.cpp
+  src/feature_detection.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -35,6 +38,9 @@ target_link_libraries(${PROJECT_NAME}
   cpprestsdk::cpprest
   nlohmann_json::nlohmann_json
   CURL::libcurl
+  Qt5::Widgets
+  Qt5::Concurrent
+  Qt5::Network
   ${OpenCV_LIBS})
 
 install (TARGETS
@@ -61,6 +67,7 @@ endif()
 
 ament_export_include_directories(
   include
+  ${OpenCV_INCLUDE_DIRS} 
 )
 
 ament_export_libraries(
