@@ -3,13 +3,14 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <set>
 
 namespace floorplan_annotator
 {
 struct Feature
 {
-  std::map<std::pair<int,int>, int> pixels;
-  int x_origin, y_origin, width, height;
+  std::map<std::pair<int, int>, int> pixels;
+  int x_origin, y_origin, width, height, index;
   double cx, cy;
 };
 
@@ -23,24 +24,9 @@ enum class FeatureType
 {
   ROOM,
   DOOR,
-  WALL
+  WALL,
+  FLOOR
 };
-
-// TODO change to only having colours for walls, rooms and doors
-cv::Scalar lower_white = cv::Scalar(0, 0, 255);  // walls
-cv::Scalar upper_white = cv::Scalar(0, 0, 255);  // walls
-cv::Scalar lower_blue = cv::Scalar(90, 50, 150);  // kitchen/living/dining room
-cv::Scalar upper_blue = cv::Scalar(90, 100, 255); // kitchen/living/dining room
-cv::Scalar lower_purple = cv::Scalar(120,35,120);  // rooms
-cv::Scalar upper_purple = cv::Scalar(120,45,255);  // rooms
-cv::Scalar lower_yellow = cv::Scalar(22,120,120);  // rooms
-cv::Scalar upper_yellow = cv::Scalar(24,150,255);  // rooms
-cv::Scalar lower_green = cv::Scalar(44,60,255);  // rooms
-cv::Scalar upper_green = cv::Scalar(45,160,255);  // rooms
-cv::Scalar lower_orange = cv::Scalar(10,155,255);  // rooms
-cv::Scalar upper_orange = cv::Scalar(40,160,255);  // rooms
-cv::Scalar lower_red = cv::Scalar(169, 170, 120);  // doors
-cv::Scalar upper_red = cv::Scalar(170, 200, 255);  // doors
 
 class FeatureDetection
 {
@@ -54,15 +40,19 @@ public:
   // Not copiable
   FeatureDetection(const FeatureDetection &) = delete;
 
-  FeatureDetection& operator=(const FeatureDetection &) = delete;
+  FeatureDetection & operator=(const FeatureDetection &) = delete;
 
   std::vector<Feature> GetWalls() const;
 
-  std::vector<std::pair<double, double>> GetRoomVertices(double x_dist, double y_dist);
+  std::vector<std::pair<int, int>> GetRoomVertices(int x_dist, int y_dist);
 
   std::vector<Door> GetDoors();
 
   QImage convert2QImage();
+
+  void UpdateRoomIndex(const std::map<std::pair<int, int>, int> & reference);
+
+  void Print();
 
 private:
   void FeatureExtraction();
@@ -73,11 +63,20 @@ private:
 
   void ExtractWalls();
 
+  void TagDoortoRoom();
+
+  // debug function
+  void PrintDoortoRoom();
+
   cv::Mat image_;
 
-  cv::Mat image_bgr_;
+  std::unordered_map<int, std::set<int>> room_to_doors_map_;  // used for connectivity map
 
-  std::unordered_map<FeatureType, std::vector<Feature>> features_;
-  
+  std::map<FeatureType, std::vector<Feature>> features_;  // container for feature type containing pixels
+
+  std::map<std::pair<int, int>, std::vector<std::pair<int, int>>> connectivity_map_;  // contains connectivity of vertices generated
+
+  std::vector<std::map<std::pair<int,int>,int>> room_vertices_;  // maps coordinates to index of a vertex
+
 };
 }  // namespace floorplan_annotator

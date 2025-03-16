@@ -13,10 +13,13 @@ find_package(OpenCV REQUIRED)
 find_package(CURL REQUIRED)
 find_package(cpprestsdk REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(ortools_vendor REQUIRED)
 find_package(Qt5 COMPONENTS Widgets Concurrent Test Network REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+message(${ortools_vendor_DIR})
 
 add_library(${PROJECT_NAME}
   SHARED
@@ -38,6 +41,7 @@ target_link_libraries(${PROJECT_NAME}
   cpprestsdk::cpprest
   nlohmann_json::nlohmann_json
   CURL::libcurl
+  ortools::ortools
   Qt5::Widgets
   Qt5::Concurrent
   Qt5::Network
