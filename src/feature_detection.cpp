@@ -3,6 +3,9 @@
 #include <opencv2/highgui.hpp>
 
 #include <algorithm>
+#include <cmath>
+#include <queue>
+#include <climits>
 #include <iostream>
 
 #include "floorplan_annotator/feature_detection.hpp"
@@ -22,7 +25,6 @@ void FeatureDetection::FeatureExtraction()
   ExtractWalls();
   TagDoortoRoom();
   // PrintDoortoRoom();
-  // Print();
 }
 
 FeatureDetection::~FeatureDetection()
@@ -179,7 +181,7 @@ std::vector<Feature> FeatureDetection::GetWalls() const
   return features_.at(FeatureType::WALL);
 }
 
-std::vector<std::pair<int, int>> FeatureDetection::GetRoomVertices(int x_dist, int y_dist)
+std::vector<std::pair<int, int>> FeatureDetection::GetVertices(int x_dist, int y_dist)
 {
   std::vector<std::pair<int, int>> vertices;
   for (const auto & room : features_.at(FeatureType::ROOM)) {
@@ -201,13 +203,35 @@ std::vector<std::pair<int, int>> FeatureDetection::GetRoomVertices(int x_dist, i
         int v_y = y_o + y * y_dist;
         // check if generated vertex is a valid part of the room
         if (room.pixels.find(std::pair<int, int>{v_x, v_y}) != room.pixels.end()) {
+          Node node;
+          node.x = v_x;
+          node.y = v_y;
+          node.index = -1;
+          node_map_.insert({{v_x, v_y}, node});
           vertices.push_back({v_x, v_y});
-          v.insert({{v_x,v_y}, -1});
+          v.insert({{v_x,v_y}, -1});          
         }
       }
     }
-    room_vertices_.push_back(v); // we store the vertices into another container for easy reference for path planning
+    room_vertices_.push_back(v); // we store the point in nother container for coordinate to index mapping
   }
+  // we generate vertices for doors too
+  for (const auto & door : features_.at(FeatureType::DOOR)) {
+    Node node;
+    node.x = door.cx;
+    node.y = door.cy;
+    node.index = -1;
+    vertices.push_back({door.cx, door.cy});
+    auto rooms = doors_to_room_map_.at(door.index);
+    for (const auto & room : rooms)
+    {
+      auto point = CalculateClosestPoint(door.cx, door.cy, room);
+      node.edges.insert({{point.x, point.y}, point.distance});
+      node_map_.at({point.x, point.y}).edges.insert({{node.x, node.y}, point.distance});
+    }
+    node_map_.insert({{door.cx, door.cy}, node});
+  }
+
   std::vector<std::pair<int, int>> directions = {
     {-1, 0},
     {1, 0},
@@ -220,7 +244,6 @@ std::vector<std::pair<int, int>> FeatureDetection::GetRoomVertices(int x_dist, i
   };
   for (auto [x, y] : vertices) {
     // Getting all neighboring pixels. Need to redo this... crazy inefficient.
-    std::vector<std::pair<int, int>> edges;
     for (const auto & [dx, dy] : directions) {
       auto neighbor_x = x + dx * x_dist;
       auto neighbor_y = y + dy * y_dist;
@@ -228,12 +251,37 @@ std::vector<std::pair<int, int>> FeatureDetection::GetRoomVertices(int x_dist, i
           vertices.begin(), vertices.end(),
           std::pair<int, int>{neighbor_x, neighbor_y}) != vertices.end())
       {
-        edges.push_back(std::pair<int, int>{neighbor_x, neighbor_y});
+        // inputting neighboring cells as edges into node_map 
+        auto dist = sqrt(pow(neighbor_x-x,2) + pow(neighbor_y-y,2));
+        node_map_.at({x,y}).edges.insert({{neighbor_x, neighbor_y},dist});
       }
     }
-    connectivity_map_.insert(std::make_pair(std::pair<int, int>{x, y}, edges));
   }
   return vertices;
+}
+
+// Used to calculate distance between a door vertex to all the points in a room 
+Point FeatureDetection::CalculateClosestPoint(int x, int y, int room)
+{
+  std::vector<Point> room_points;
+  auto calc_2_points = [&x, &y](const std::pair<int, int> & point) -> int {
+    auto dx = x - point.first;
+    auto dy = y - point.second;
+    return (sqrt(pow(dx, 2) + pow(dy,2)));
+  };
+  for (const auto & [point, index] : room_vertices_[(room-1)])
+  {
+    Point p;
+    auto dist = calc_2_points(point);
+    p.distance = dist;
+    p.x = point.first;
+    p.y = point.second;
+    room_points.push_back(p);
+  }
+  std::sort(room_points.begin(), room_points.end(), [&](const Point & lhs, const Point & rhs) -> bool {
+    return lhs.distance < rhs.distance;
+  });
+  return room_points[0];
 }
 
 std::vector<Door> FeatureDetection::GetDoors()
@@ -297,17 +345,25 @@ void FeatureDetection::TagDoortoRoom()
     }
     room_to_doors_map_.insert({room.index, doors});
   }
+
+  for (const auto & door : features_.at(FeatureType::DOOR))
+  {
+    std::set<int> rooms;
+    for (const auto & [room, doors] : room_to_doors_map_)
+    {
+      if (doors.find(door.index) != doors.end())
+      {
+        rooms.insert(room);
+      }
+    }
+    doors_to_room_map_.insert({door.index, rooms});
+  }
 }
 
 void FeatureDetection::PrintDoortoRoom()
 {
   for (const auto & [room, doors] : room_to_doors_map_) {
     std::cout << "Room:" << room;
-    for (const auto & r : features_.at(FeatureType::ROOM)) {
-      if (r.index == room) {
-        std::cout << " cx:" << r.cx << " cy:" << r.cy << " ";
-      }
-    }
 
     std::cout << " | Doors:";
     for (const auto & door : doors) {
@@ -315,16 +371,132 @@ void FeatureDetection::PrintDoortoRoom()
     }
     std::cout << "\n";
   }
-}
 
-void FeatureDetection::Print()
-{
-  for (const auto & [node, edges] : connectivity_map_) {
-    std::cout << "node:(" << node.first << "," << node.second << ")" << "   edges:";
-    for (const auto & edge : edges) {
-      std::cout << "(" << edge.first << "," << edge.second << ") ";
+  for (const auto & [door, rooms] : doors_to_room_map_) {
+    std::cout << "Door:" << door;
+
+    std::cout << " | Rooms:";
+    for (const auto & room : rooms) {
+      std::cout << room << ",";
     }
     std::cout << "\n";
   }
 }
+
+void FeatureDetection::Print()
+{
+  for (const auto & [coord, node] : node_map_) {
+    std::cout << "Node:" << node.index << " | edges: ";
+    for ( const auto & [edge, length] : node.edges) 
+    {
+      std::cout << node_map_[{edge.first, edge.second}].index << ",length:" << length << " | ";
+    }
+    std::cout << "\n";
+  }
+
+  // for (const auto & room : room_vertices_)
+  // {
+  //   for (const auto & [coord, idx] : room)
+  //   {
+  //     std::cout << coord.first << "," << coord.second << "index: " << idx << "\n";
+  //   }
+  // }
+}
+
+void FeatureDetection::UpdateIndex(const std::map<std::pair<int, int>, int> & reference)
+{
+  for (const auto & [coordinate, idx] : reference)
+  {
+    if (node_map_.find(coordinate)!= node_map_.end())
+    {
+      node_map_.at(coordinate).index = idx;
+    }
+    for (auto & room : room_vertices_)
+    {
+      for (auto & [coord, index] : room)
+      {
+        if (coordinate == coord)
+        {
+          index = idx;
+        }
+      }
+    }
+  }
+  for (const auto & [coord, node] : node_map_)
+  {
+    vertices_map_[node.index] = coord;
+  }
+}
+
+void FeatureDetection::setStartPoint(int p)
+{
+  start_point_ = p;
+}
+
+void FeatureDetection::setEndPoint(int p)
+{
+  end_point_ = p;
+}
+
+int FeatureDetection::getStartPoint()
+{
+  // auto node = node_map_.at(start_point_);
+  // std::cout << "index:" << node.index <<" | " << node.x <<","<< node.y << std::endl; 
+  return start_point_;
+}
+
+int FeatureDetection::getEndPoint()
+{
+  // auto node = node_map_.at(end_point_);
+  // std::cout << "index:" << node.index <<" | " << node.x <<","<< node.y << std::endl; 
+  return end_point_;
+}
+
+std::vector<std::pair<int,int>> FeatureDetection::Dijkstra(int start, int end)
+{
+  std::priority_queue<IdxDistPair, std::vector<IdxDistPair>, std::greater<IdxDistPair>> queue;
+  std::vector<int> distance(node_map_.size(), INT_MAX);
+  std::vector<int> parent (node_map_.size(), -1);
+
+  distance[start] = 0;
+  queue.push({0,start});
+
+  while (!queue.empty())
+  {
+    int node_idx = queue.top().second;
+    int dist = queue.top().first;
+    queue.pop();
+
+    if (node_idx == end)
+      break;
+    if (dist > distance[node_idx])
+      continue;
+    for (const auto & [vertex,length] : node_map_.at(vertices_map_.at(node_idx)).edges)
+    {
+      if (distance[node_idx] + length < distance[node_map_.at(vertex).index])
+      {
+        distance[node_map_.at(vertex).index] = distance[node_idx] + length;
+        parent[node_map_.at(vertex).index] = node_idx;
+        queue.push({distance[node_map_.at(vertex).index], node_map_.at(vertex).index});
+      }
+    }
+  }
+  std::vector<int> path;
+  std::vector<std::pair<int,int>> path_coordinates;
+  if (distance[end] == INT_MAX)
+    return path_coordinates;
+  
+  for (int v = end; v != -1; v = parent[v])
+  {
+    path.push_back(v);
+  }
+  std::reverse(path.begin(), path.end());
+
+  for (const auto & index : path)
+  {
+    path_coordinates.push_back(vertices_map_.at(index));
+  }
+  return path_coordinates;
+}
+
 }  // namespace floorplan_annotator

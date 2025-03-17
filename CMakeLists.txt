@@ -19,8 +19,6 @@ find_package(Qt5 COMPONENTS Widgets Concurrent Test Network REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-message(${ortools_vendor_DIR})
-
 add_library(${PROJECT_NAME}
   SHARED
   src/utils/rest_communicator.cpp
@@ -71,7 +69,8 @@ endif()
 
 ament_export_include_directories(
   include
-  ${OpenCV_INCLUDE_DIRS} 
+  ${OpenCV_INCLUDE_DIRS}
+  
 )
 
 ament_export_libraries(
