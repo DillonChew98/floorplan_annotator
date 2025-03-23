@@ -13,5 +13,4 @@ protected:
 
 TEST_F(TESTREST, DETECTIONTEST) {
   FeatureDetection("/home/dillon/rmf_ws/src/floorplan_annotator/test/output.png");
-  
 }
